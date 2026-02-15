@@ -1,6 +1,6 @@
 services:
   authone:
-    image: ghcr.io/dannyblack/authone:latest
+    image: ghcr.io/dannxevans/authone:latest
     container_name: authone
     restart: unless-stopped
     ports:
