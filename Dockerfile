@@ -20,6 +20,8 @@ COPY backend/package.json ./backend/
 RUN npm ci --workspace=backend
 COPY backend/ ./backend/
 RUN npm run build --workspace=backend
+# Copy SQL migration files into dist (tsc doesn't copy non-TS files)
+RUN cp -r /app/backend/src/db/migrations /app/backend/dist/db/migrations
 # Prune dev deps from the root node_modules (where workspaces hoist packages)
 RUN npm prune --omit=dev
 
