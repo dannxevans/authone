@@ -66,6 +66,7 @@ app.get('/health', (_req, res) => {
 
 // Serve frontend in production
 const frontendDist = join(__dirname, '../../frontend/dist');
+logger.info({ frontendDist, exists: existsSync(frontendDist) }, 'Frontend dist check');
 if (existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
   app.get('*path', (_req, res) => {
