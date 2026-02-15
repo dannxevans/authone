@@ -1,22 +1,27 @@
 # Stage 1: Build frontend
 FROM node:22-alpine AS build-frontend
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
+WORKDIR /app
+# Copy root workspace manifests + lock file first for layer caching
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+RUN npm ci --workspace=frontend
+COPY frontend/ ./frontend/
+RUN npm run build --workspace=frontend
 
 # Stage 2: Build backend (compile TS + install prod deps + rebuild native bindings)
 FROM node:22-alpine AS build-backend
-WORKDIR /app/backend
+WORKDIR /app
 # Native build tools for better-sqlite3
 RUN apk add --no-cache python3 make g++
-COPY backend/package*.json ./
-RUN npm ci
-COPY backend/ ./
-RUN npm run build
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+RUN npm ci --workspace=backend
+COPY backend/ ./backend/
+RUN npm run build --workspace=backend
 # Remove dev dependencies
-RUN npm prune --production
+RUN npm prune --omit=dev --workspace=backend
 
 # Stage 3: Runtime image
 FROM node:22-alpine AS runtime
