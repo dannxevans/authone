@@ -20,8 +20,8 @@ COPY backend/package.json ./backend/
 RUN npm ci --workspace=backend
 COPY backend/ ./backend/
 RUN npm run build --workspace=backend
-# Remove dev dependencies
-RUN npm prune --omit=dev --workspace=backend
+# Prune dev deps from the root node_modules (where workspaces hoist packages)
+RUN npm prune --omit=dev
 
 # Stage 3: Runtime image
 FROM node:22-alpine AS runtime
@@ -29,12 +29,13 @@ RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
+# Copy root package.json (needed by Node module resolution)
+COPY --from=build-backend /app/package.json ./
+# All deps are hoisted to root node_modules by npm workspaces
+COPY --from=build-backend /app/node_modules ./node_modules
 # Copy built backend
 COPY --from=build-backend /app/backend/dist ./backend/dist
-COPY --from=build-backend /app/backend/node_modules ./backend/node_modules
 COPY --from=build-backend /app/backend/package.json ./backend/
-# Copy root node_modules (shared workspace deps)
-COPY --from=build-backend /app/node_modules ./node_modules
 
 # Copy frontend build
 COPY --from=build-frontend /app/frontend/dist ./frontend/dist
