@@ -26,6 +26,8 @@ if (config.TRUST_PROXY) {
 // Security headers
 app.use(
   helmet({
+    // Disable HSTS — app runs on HTTP on local network; HSTS would force browser to HTTPS permanently
+    strictTransportSecurity: false,
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -34,7 +36,6 @@ app.use(
         imgSrc: ["'self'", 'data:'],
         mediaSrc: ["'self'"],
         connectSrc: ["'self'"],
-        // Allow camera access for QR scanning
         frameAncestors: ["'none'"],
       },
     },
