@@ -40,10 +40,8 @@ COPY --from=build-backend /app/backend/package.json ./backend/
 # Copy frontend build
 COPY --from=build-frontend /app/frontend/dist ./frontend/dist
 
-# Create data directory
-RUN mkdir -p /data && chown node:node /data
-
-USER node
+# Create data directory (world-writable so any PUID/PGID can use it)
+RUN mkdir -p /data && chmod 777 /data
 
 EXPOSE 3000
 
