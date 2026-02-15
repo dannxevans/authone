@@ -22,9 +22,7 @@ interface AccountTileProps {
   onUpdate: (id: string, updates: { issuer: string; account: string }) => void;
   isDragging?: boolean;
   isDragOver?: boolean;
-  onDragStart?: (id: string) => void;
-  onDragOver?: (id: string) => void;
-  onDragEnd?: () => void;
+  onPointerDownGrip?: (e: React.PointerEvent, id: string) => void;
 }
 
 function formatCode(code: string): string {
@@ -135,9 +133,7 @@ export default function AccountTile({
   onUpdate,
   isDragging = false,
   isDragOver = false,
-  onDragStart,
-  onDragOver,
-  onDragEnd,
+  onPointerDownGrip,
 }: AccountTileProps) {
   const { code, remaining, period } = useTotp(
     account.secret ?? '',
@@ -161,10 +157,7 @@ export default function AccountTile({
   return (
     <>
       <div
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(account.id); }}
-        onDragOver={(e) => { e.preventDefault(); onDragOver?.(account.id); }}
-        onDragEnd={onDragEnd}
+        data-account-id={account.id}
         className={`bg-gray-900 rounded-xl p-4 border transition-colors relative group select-none
           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
           ${isDragOver ? 'border-blue-500 shadow-lg shadow-blue-900/30' : 'border-gray-800 hover:border-gray-700'}
@@ -174,8 +167,12 @@ export default function AccountTile({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1 flex items-start gap-2">
-            {/* Drag grip */}
-            <div className="text-gray-600 cursor-grab active:cursor-grabbing mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Drag grip — always visible on touch devices, hover-only on desktop */}
+            <div
+              onPointerDown={(e) => onPointerDownGrip?.(e, account.id)}
+              className="text-gray-500 cursor-grab active:cursor-grabbing mt-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 -m-1"
+              style={{ touchAction: 'none' }}
+            >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
                 <circle cx="5" cy="4" r="1.2" /><circle cx="11" cy="4" r="1.2" />
                 <circle cx="5" cy="8" r="1.2" /><circle cx="11" cy="8" r="1.2" />
@@ -194,7 +191,7 @@ export default function AccountTile({
           <div className="relative ml-2 flex-shrink-0">
             <button
               onClick={() => setShowMenu((v) => !v)}
-              className="p-1 text-gray-500 hover:text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              className="p-1 text-gray-500 hover:text-gray-300 rounded sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
             >
               <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                 <circle cx="10" cy="4" r="1.5" />

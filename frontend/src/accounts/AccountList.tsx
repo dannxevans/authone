@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../api/client.ts';
 import AccountTile, { type Account } from './AccountTile.tsx';
 import AddAccountModal from './AddAccountModal.tsx';
@@ -64,32 +64,61 @@ export default function AccountList() {
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragIdRef = useRef<string | null>(null);
+  const dragOverIdRef = useRef<string | null>(null);
 
-  const handleDragStart = (id: string) => setDragId(id);
-  const handleDragOver = (id: string) => setDragOverId(id);
-  const handleDragEnd = () => {
-    if (!dragId || !dragOverId || dragId === dragOverId) {
-      setDragId(null);
-      setDragOverId(null);
-      return;
-    }
-
+  const commitReorder = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
     setAccounts((prev) => {
       const next = [...prev];
-      const fromIdx = next.findIndex((a) => a.id === dragId);
-      const toIdx = next.findIndex((a) => a.id === dragOverId);
+      const fromIdx = next.findIndex((a) => a.id === fromId);
+      const toIdx = next.findIndex((a) => a.id === toId);
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
-      // Persist new order — fire and forget
       next.forEach((a, i) => {
         void apiClient.patch(`/accounts/${a.id}`, { sort_order: i }).catch(() => null);
       });
       return next;
     });
+  }, []);
 
-    setDragId(null);
+  const handlePointerDownGrip = useCallback((e: React.PointerEvent, id: string) => {
+    e.preventDefault();
+    (e.target as Element).setPointerCapture(e.pointerId);
+    dragIdRef.current = id;
+    dragOverIdRef.current = id;
+    setDragId(id);
     setDragOverId(null);
-  };
+
+    const onMove = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const tile = el?.closest('[data-account-id]');
+      const overId = tile?.getAttribute('data-account-id') ?? null;
+      if (overId && overId !== dragIdRef.current) {
+        dragOverIdRef.current = overId;
+        setDragOverId(overId);
+      }
+    };
+
+    const onUp = () => {
+      const fromId = dragIdRef.current;
+      const toId = dragOverIdRef.current;
+      if (fromId && toId && fromId !== toId) {
+        commitReorder(fromId, toId);
+      }
+      dragIdRef.current = null;
+      dragOverIdRef.current = null;
+      setDragId(null);
+      setDragOverId(null);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  }, [commitReorder]);
 
   const handleAccountAdded = () => {
     setShowAdd(false);
@@ -103,8 +132,8 @@ export default function AccountList() {
 
   return (
     <div className="min-h-screen bg-gray-950">
-      {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-4 py-3">
+      {/* Header — sticky so it stays pinned while scrolling */}
+      <header className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg width="24" height="24" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -236,9 +265,7 @@ export default function AccountList() {
                 onUpdate={handleUpdate}
                 isDragging={dragId === account.id}
                 isDragOver={dragOverId === account.id && dragId !== account.id}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
+                onPointerDownGrip={handlePointerDownGrip}
               />
             ))}
           </div>
